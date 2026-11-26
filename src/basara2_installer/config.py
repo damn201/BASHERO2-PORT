@@ -33,6 +33,15 @@ GAME_ID = "RBSJ08"  # Wii NTSC-J Sengoku Basara 2 Heroes
 # bodgit/rvz reader.go (rvzMagic 0x52565a01); file asli diawali
 # 52 56 5A 01 01 00 00 00 ... (version u32 LE = 1 di byte 4-7).
 RVZ_MAGIC = b"RVZ\x01"
+# Ukuran disc Wii penuh: 4.699.979.776 byte. Konversi .rvz -> .iso
+# menulis file .iso sebesar ini di drive yang sama dengan file .rvz,
+# jadi drive itu butuh ruang kosong minimal sebesar ini (+ margin).
+# v1.1.2: dicek SEBELUM mengunduh Dolphin — sebelumnya tidak ada cek
+# sama sekali untuk drive file game (syscheck hanya memeriksa drive
+# folder install), sehingga konversi bisa gagal di tengah jalan
+# dengan pesan yang tidak jelas.
+WII_ISO_BYTES = 4699979776
+RVZ_CONVERT_FREE_BYTES = 5 * 1024 ** 3  # ~5 GB margin untuk hasil konversi
 # Game hasil build Windows (relatif terhadap folder install/source).
 BUILT_EXE_PARTS = ("generated", "win-build", "WiiCompiled.exe")
 BUILT_EXE_REL = "\\".join(BUILT_EXE_PARTS)

@@ -27,7 +27,12 @@ SOURCE_ZIP_ROOT = f"B2HWii-Android-{PORT_TAG}"
 
 # --- File game (milik pengguna sendiri) ---
 GAME_ID = "RBSJ08"  # Wii NTSC-J Sengoku Basara 2 Heroes
-RVZ_MAGIC = b"RVZ1"
+# Magic format RVZ Dolphin: "RVZ" + byte versi 0x01 (BUKAN ASCII "RVZ1"!
+# v1.1.1: RVZ_MAGIC sempat b"RVZ1" sehingga semua file .rvz ASLI ditolak.
+# Terverifikasi: RomM rvz_hasher.py (_RVZ_MAGIC = b"RVZ\x01") dan
+# bodgit/rvz reader.go (rvzMagic 0x52565a01); file asli diawali
+# 52 56 5A 01 01 00 00 00 ... (version u32 LE = 1 di byte 4-7).
+RVZ_MAGIC = b"RVZ\x01"
 # Game hasil build Windows (relatif terhadap folder install/source).
 BUILT_EXE_PARTS = ("generated", "win-build", "WiiCompiled.exe")
 BUILT_EXE_REL = "\\".join(BUILT_EXE_PARTS)

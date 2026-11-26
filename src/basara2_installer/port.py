@@ -765,8 +765,9 @@ def validate_game_file(path: Path | str) -> dict:
     """Validasi satu file/folder game.
 
     - .iso: 6 byte pertama harus "RBSJ08" (Wii NTSC-J Basara 2 Heroes).
-    - .rvz: 4 byte pertama harus "RVZ1" (v1.1.0: dikonversi otomatis
-      ke .iso dengan DolphinTool — tidak lagi jalan buntu).
+    - .rvz: 4 byte pertama harus "RVZ" + byte 0x01 (magic RVZ Dolphin;
+      v1.1.0: dikonversi otomatis ke .iso dengan DolphinTool — tidak
+      lagi jalan buntu).
     - folder: harus berisi sys/main.dol (folder hasil ekstraksi disc).
 
     Mengembalikan:
@@ -839,7 +840,8 @@ def validate_game_file(path: Path | str) -> dict:
                         )
                     else:
                         issues.append(
-                            "File .rvz ini tidak diawali magic 'RVZ1' "
+                            "File .rvz ini tidak diawali magic RVZ "
+                            "(\"RVZ\" + byte 0x01) "
                             f"(terdeteksi: {_printable_id(magic)}). File "
                             "mungkin rusak atau bukan file RVZ."
                         )
@@ -860,7 +862,7 @@ def validate_game_file(path: Path | str) -> dict:
         )
     elif valid and kind == "rvz":
         detail = (
-            "File game valid: dump Wii (RVZ1). Installer akan mengonversi "
+            "File game valid: dump Wii (RVZ). Installer akan mengonversi "
             "otomatis ke .iso (DolphinTool) sebelum diekstrak."
         )
     elif valid and kind == "folder":

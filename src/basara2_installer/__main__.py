@@ -92,18 +92,18 @@ def self_test() -> int:
             print("validasi file game: file tidak ada gagal (ok)")
 
             rvz = root / "basara2heroes.rvz"
-            rvz.write_bytes(b"RVZ1" + b"\x00" * 1024)
+            rvz.write_bytes(b"RVZ\x01" + b"\x00" * 1024)
             hasil = validate_game_file(rvz)
             assert hasil["valid"] is True, hasil
             assert hasil["kind"] == "rvz", hasil
             assert hasil["warnings"], hasil
-            print("validasi file game: .rvz dengan magic RVZ1 lolos (ok)")
+            print("validasi file game: .rvz dengan magic RVZ lolos (ok)")
 
             rvz_rusak = root / "rusak.rvz"
             rvz_rusak.write_bytes(b"XXXX" + b"\x00" * 1024)
             hasil = validate_game_file(rvz_rusak)
             assert hasil["valid"] is False, hasil
-            print("validasi file game: .rvz tanpa magic RVZ1 gagal (ok)")
+            print("validasi file game: .rvz tanpa magic RVZ gagal (ok)")
 
             folder = root / "basara-heroes"
             (folder / "sys").mkdir(parents=True)

@@ -22,11 +22,15 @@ selesai dilewati). Perbaikan dari laporan pengguna v1.0.0: .rvz tidak
 lagi jalan buntu, .NET 8 SDK diunduh otomatis, folder generated/
 dibuat dulu, toolchain diperbaiki per-bagian bila script gagal.
 
+v1.1.1: perbaikan cek magic RVZ — file .rvz asli sempat ditolak karena
+installer memeriksa ASCII "RVZ1", padahal magic RVZ Dolphin adalah
+"RVZ" + byte 0x01. File .rvz asli sekarang diterima.
+
 Aplikasi ini TIDAK menyertakan file game apa pun. Pengguna wajib memakai
 dump Wii Sengoku Basara 2 Heroes NTSC-J (RBSJ08) miliknya sendiri
 (.iso atau .rvz).
 """
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 __port_repo__ = "PotatoRecomp/B2HWii-Android"
 __port_tag__ = "v1.2.1-hotfix"

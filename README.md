@@ -1,4 +1,4 @@
-# Basara 2 Heroes PC Installer — v1.1.0
+# Basara 2 Heroes PC Installer — v1.1.1
 
 Installer/launcher Windows untuk memainkan **Sengoku Basara 2 Heroes
 (versi Wii) secara native di PC** — **BUKAN emulator**.
@@ -11,6 +11,15 @@ v1.2.1-hotfix, lisensi GPLv3) dari source di PC kamu. Caranya SIMPLE:
 terjemahkan, bangun Windows) jalan otomatis dan berurutan — dan bila ada
 langkah gagal, tekan MAIN lagi untuk melanjutkan dari langkah itu
 (langkah yang sudah selesai tidak diulang).
+
+## Yang diperbaiki di v1.1.1
+
+v1.1.1 memperbaiki cek RVZ sehingga file RVZ asli diterima: installer
+sempat memeriksa magic ASCII `RVZ1`, padahal magic format RVZ Dolphin
+yang sebenarnya adalah `RVZ` + byte versi `0x01` (file asli diawali
+`52 56 5A 01`). Akibatnya semua file `.rvz` asli ditolak sebagai "bukan
+file game" — sekarang sudah diterima dan dikonversi otomatis ke `.iso`
+seperti biasa.
 
 ## Yang diperbaiki di v1.1.0
 
@@ -102,7 +111,7 @@ file berikut **milikmu sendiri**:
 
 Hanya versi Wii NTSC-J `RBSJ08` yang didukung port ini. Installer
 memvalidasi file yang kamu pilih (game ID di 6 byte pertama `.iso`
-harus `RBSJ08`; `.rvz` harus diawali magic `RVZ1`).
+harus `RBSJ08`; `.rvz` harus diawali magic RVZ — `RVZ` + byte `0x01`).
 
 ### Tentang .rvz
 
@@ -261,7 +270,7 @@ Tes ini memeriksa: rilis port di GitHub bisa dijangkau (dan hanya berisi
 APK Android; bila API GitHub rate-limit 403, bagian ini dilaporkan
 "tidak dapat diperiksa" — BUKAN gagal, karena alur normal tidak memakai
 API GitHub), validasi file game pada file tiruan (.iso RBSJ08, .rvz
-RVZ1, folder sys/main.dol), helper baru v1.1.0 (parse_dotnet_version,
+RVZ, folder sys/main.dol), helper baru v1.1.0 (parse_dotnet_version,
 dolphin_tool_command, ensure_generated_dirs), dan cek sistem tidak
 crash. Unit test:
 

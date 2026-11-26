@@ -80,6 +80,7 @@ from .config import (
     PORT_ANDROID_ASSET,
     PORT_RELEASE_API,
     PORT_TAG,
+    RVZ_CONVERT_FREE_BYTES,
     RVZ_MAGIC,
     SOURCE_ZIP_ROOT,
     SOURCE_ZIP_URL,
@@ -899,6 +900,109 @@ def validate_extracted_folder(folder: Path | str) -> Path | None:
 
 
 # ---------------------------------------------------------------------------
+# Pre-flight v1.1.2 — cek yang sebelumnya tidak ada, padahal bisa
+# menggagalkan MAIN di tengah jalan dengan pesan yang tidak jelas:
+#  - ruang kosong di DRIVE FILE GAME (bukan drive folder install):
+#    konversi .rvz -> .iso menulis .iso ~4,7 GB di folder yang sama
+#    dengan file .rvz (mis. G:\). syscheck hanya memeriksa drive
+#    folder install, jadi drive game yang penuh tidak pernah ketahuan.
+#  - Visual C++ Redistributable (x64): DolphinTool.exe tidak bisa
+#    jalan tanpanya (exit 0xC0000135). Sebelumnya baru ketahuan
+#    SETELAH Dolphin diunduh dan konversi gagal.
+# ---------------------------------------------------------------------------
+
+def free_space_bytes(path: Path | str) -> int | None:
+    """Ruang kosong (byte) di drive berisi path, atau None bila
+    tidak dapat dibaca."""
+    try:
+        return shutil.disk_usage(str(path)).free
+    except OSError:
+        return None
+
+
+def vcpp_redist_installed() -> bool | None:
+    """Visual C++ Redistributable 2015-2022 (x64) terpasang?
+
+    True bila kunci registry runtimes x64 ada dan Installed=1,
+    False bila kunci ada tetapi tidak terpasang, None bila tidak
+    dapat diperiksa (bukan Windows / registry tidak terbaca).
+    DolphinTool.exe (x64) butuh redist ini untuk jalan.
+    """
+    import platform
+
+    if platform.system() != "Windows":
+        return None
+    try:
+        import winreg
+
+        key_path = (
+            r"SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+        )
+        with winreg.OpenKey(
+            winreg.HKEY_LOCAL_MACHINE, key_path
+        ) as key:
+            value, _ = winreg.QueryValueEx(key, "Installed")
+            return value == 1
+    except (OSError, ImportError, AttributeError):
+        return None
+
+
+def check_game_drive_space(game_path: Path | str) -> dict:
+    """Cek ruang kosong untuk menyiapkan file game.
+
+    - .rvz: butuh RVZ_CONVERT_FREE_BYTES (~5 GB) kosong di drive
+      file .rvz, karena hasil konversi .iso (~4,7 GB) ditulis di
+      folder yang sama dengan file .rvz.
+    - .iso / folder: tidak butuh ruang ekstra di drive game
+      (ekstraksi memakai drive folder install, yang sudah dicek
+      syscheck).
+
+    Mengembalikan {"needed_bytes", "free_bytes", "ok", "detail"}.
+    """
+    game_path = Path(game_path)
+    suffix = game_path.suffix.lower()
+    if suffix == ".rvz":
+        needed = RVZ_CONVERT_FREE_BYTES
+    else:
+        needed = 0
+    free = free_space_bytes(game_path.parent)
+    if needed == 0:
+        return {
+            "needed_bytes": 0,
+            "free_bytes": free,
+            "ok": True,
+            "detail": "Tidak butuh ruang ekstra di drive file game.",
+        }
+    if free is None:
+        return {
+            "needed_bytes": needed,
+            "free_bytes": None,
+            "ok": True,
+            "detail": (
+                "Ruang kosong di drive file game tidak dapat diperiksa — "
+                "tetap lanjut; pastikan drive punya ~5 GB kosong untuk "
+                "hasil konversi .iso."
+            ),
+        }
+    ok = free >= needed
+    detail = (
+        f"Ruang kosong di drive file game: {free / 1024 ** 3:.1f} GB, "
+        f"dibutuhkan ~{needed / 1024 ** 3:.0f} GB untuk hasil konversi .iso."
+    )
+    if not ok:
+        detail += (
+            " Kosongkan drive itu atau pindahkan file .rvz ke drive lain "
+            "yang punya minimal 5 GB kosong, lalu tekan MAIN lagi."
+        )
+    return {
+        "needed_bytes": needed,
+        "free_bytes": free,
+        "ok": ok,
+        "detail": detail,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Konversi .rvz -> .iso dengan DolphinTool (perbaikan bug v1.0.0)
 # ---------------------------------------------------------------------------
 
@@ -1037,6 +1141,30 @@ def convert_rvz_to_iso(
                 )
             return iso_path
         iso_path.unlink(missing_ok=True)
+    # v1.1.2 pre-flight: gagal cepat dengan pesan jelas, SEBELUM
+    # mengunduh Dolphin (~19 MB) dan menjalankan konversi yang lama.
+    space = check_game_drive_space(rvz_path)
+    if log_cb:
+        log_cb("      " + space["detail"])
+    if not space["ok"]:
+        raise RuntimeError(
+            "Ruang kosong di drive file game tidak cukup untuk konversi "
+            ".rvz -> .iso. " + space["detail"]
+        )
+    vcpp = vcpp_redist_installed()
+    if vcpp is False:
+        raise RuntimeError(
+            "Visual C++ Redistributable (x64) belum terpasang di PC ini — "
+            "DolphinTool tidak bisa jalan tanpanya. Pasang dulu dari "
+            f"{VC_REDIST_URL} (jalankan, lalu tekan MAIN lagi). "
+            "Tidak perlu mengunduh Dolphin dulu."
+        )
+    if vcpp is None and log_cb:
+        log_cb(
+            "      Visual C++ Redistributable tidak dapat diperiksa — "
+            "tetap lanjut; bila DolphinTool gagal jalan, pasang dari "
+            f"{VC_REDIST_URL}."
+        )
     tool = ensure_dolphin(log_cb=log_cb, progress_cb=progress_cb)
     if log_cb:
         log_cb(

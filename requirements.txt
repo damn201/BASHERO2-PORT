@@ -1,0 +1,7 @@
+# Runtime (dibundel ke dalam exe oleh PyInstaller)
+py-cpuinfo>=9.0
+# Ekstrak arsip .7z Dolphin (pure Python + ekstensi C pybcj/pyppmd/pyzstd)
+py7zr>=1.0
+
+# Build
+pyinstaller>=6.0

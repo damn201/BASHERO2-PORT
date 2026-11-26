@@ -1,4 +1,4 @@
-# Basara 2 Heroes PC Installer — v1.1.1
+# Basara 2 Heroes PC Installer — v1.1.2
 
 Installer/launcher Windows untuk memainkan **Sengoku Basara 2 Heroes
 (versi Wii) secara native di PC** — **BUKAN emulator**.
@@ -7,10 +7,31 @@ Aplikasi ini membangun port native open-source **PotatoRecomp/B2HWii-Android**
 ([PotatoRecomp/B2HWii-Android](https://github.com/PotatoRecomp/B2HWii-Android),
 v1.2.1-hotfix, lisensi GPLv3) dari source di PC kamu. Caranya SIMPLE:
 **pilih file game, tekan tombol besar ▶ MAIN, lalu main.** Semua langkah
-(cek PC, unduh source, siapkan toolchain, konversi .rvz, ekstrak disc,
+(cek PC, unduh source, konversi .rvz, ekstrak disc, siapkan toolchain,
 terjemahkan, bangun Windows) jalan otomatis dan berurutan — dan bila ada
 langkah gagal, tekan MAIN lagi untuk melanjutkan dari langkah itu
 (langkah yang sudah selesai tidak diulang).
+
+## Yang diperbaiki di v1.1.2
+
+v1.1.1 memperbaiki validasi .rvz, tetapi v1.1.1 masih gagal di PC pengguna
+tanpa log yang bisa dibaca. v1.1.2 memperbaiki tiga hal yang ditemukan
+dari pemeriksaan kode setelah laporan itu:
+
+1. **Urutan MAIN dibalik** — validasi + konversi .rvz + ekstrak disc
+   sekarang jalan SEBELUM toolchain (~500 MB), mengikuti urutan README
+   port (ekstrak disc dulu, baru setup toolchain). File game yang
+   bermasalah ketahuan dalam hitungan menit, dan perbaikan .rvz v1.1.1
+   benar-benar tercapai sebelum toolchain yang lama.
+2. **Pre-flight sebelum konversi .rvz** — installer memeriksa ruang
+   kosong di drive file game (~5 GB untuk .iso hasil konversi, yang
+   ditulis di folder yang sama dengan file .rvz) dan Visual C++
+   Redistributable yang dibutuhkan DolphinTool. Keduanya gagal cepat
+   dengan pesan jelas, bukan di tengah konversi.
+3. **Log disimpan otomatis ke file**
+   `%APPDATA%\Basara2HeroesPCInstaller\basara2-installer.log`, jadi
+   tetap bisa dikirim walau aplikasi sudah ditutup (sebelumnya log
+   hanya ada di layar). Tombol **Buka Folder Log** membuka folder itu.
 
 ## Yang diperbaiki di v1.1.1
 
@@ -125,7 +146,7 @@ log menulis cara manualnya: buka Dolphin
 dan tekan MAIN lagi. Alternatif lain: pilih folder yang sudah diekstrak
 (berisi `sys/main.dol`).
 
-## Cara pakai (v1.1.0 — satu layar)
+## Cara pakai (v1.1.2 — satu layar)
 
 1. Jalankan `Basara2HeroesPCInstaller.exe`.
 2. **1. File Game** — pilih dump `.iso`/`.rvz` milikmu (atau folder
@@ -136,12 +157,16 @@ dan tekan MAIN lagi. Alternatif lain: pilih folder yang sudah diekstrak
    dan progresnya muncul di log:
    1. Cek sistem (info saja — tidak memblokir).
    2. Unduh + ekstrak source port (dilewati bila sudah ada).
-   3. Siapkan toolchain (CMake, Ninja, dependency, llvm-mingw,
-      .NET 8 runtime lokal; ~500 MB).
-   4. Pastikan .NET 8 SDK (diunduh otomatis bila tidak ada).
-   5. Validasi file game; bila .rvz, konversi otomatis ke .iso;
+   3. Validasi file game; bila .rvz, konversi otomatis ke .iso;
       ekstrak disc ke `assets/basara-heroes/sys/main.dol` (dilewati
-      bila sudah ada).
+      bila sudah ada). Sejak v1.1.2 langkah ini jalan SEBELUM
+      toolchain, supaya file game yang bermasalah ketahuan cepat.
+      Sebelum konversi .rvz, installer memeriksa ruang kosong di
+      drive file game (~5 GB untuk .iso hasil konversi) dan Visual
+      C++ Redistributable yang dibutuhkan DolphinTool.
+   4. Siapkan toolchain (CMake, Ninja, dependency, llvm-mingw,
+      .NET 8 runtime lokal; ~500 MB).
+   5. Pastikan .NET 8 SDK (diunduh otomatis bila tidak ada).
    6. Buat folder `generated/` + `generated/b/`.
    7. Terjemahkan (PowerPC -> C++, beberapa menit) lalu bangun Windows
       (kompilasi C++ penuh, bisa puluhan menit; dilewati bila
@@ -153,7 +178,10 @@ Bila ada langkah gagal: baca log — di sana tertulis error persisnya +
 "yang harus dilakukan" dalam Bahasa Indonesia yang sederhana. Tekan
 MAIN lagi untuk melanjutkan dari langkah yang gagal. Tombol **Salin
 Log** menyalin seluruh log ke clipboard agar bisa dikirim bila butuh
-bantuan.
+bantuan. Sejak v1.1.2 log juga tersimpan otomatis di file
+`%APPDATA%\Basara2HeroesPCInstaller\basara2-installer.log`, jadi tetap
+bisa dikirim walau aplikasi sudah ditutup — tombol **Buka Folder Log**
+membuka folder itu.
 
 Catatan:
 

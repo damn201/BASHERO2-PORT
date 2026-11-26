@@ -52,14 +52,37 @@ class TestValidateGameFile(unittest.TestCase):
         self.assertFalse(hasil["valid"])
         self.assertTrue(hasil["issues"])
 
-    def test_rvz_magic_rvz1_lolos(self):
+    def test_rvz_magic_rvz_lolos(self):
         rvz = self.root / "basara2heroes.rvz"
-        rvz.write_bytes(b"RVZ1" + b"\x00" * 1024)
+        rvz.write_bytes(b"RVZ\x01" + b"\x00" * 1024)
         hasil = validate_game_file(rvz)
         self.assertTrue(hasil["valid"])
         self.assertEqual(hasil["kind"], "rvz")
         self.assertTrue(hasil["warnings"])
         self.assertIn("Dolphin", " ".join(hasil["warnings"]))
+
+    def test_rvz_header_asli_ed_lolos(self):
+        # Regresi v1.1.1: file .rvz asli Ed diawali 16 byte ini
+        # (52 56 5A 01 01 00 00 00 00 03 00 00 00 00 00 DC) — RVZ v1
+        # valid (magic "RVZ" + byte 0x01, version u32 LE = 1).
+        # Dulu ditolak karena installer memeriksa ASCII "RVZ1".
+        rvz = self.root / "basara2heroes.rvz"
+        rvz.write_bytes(
+            bytes.fromhex("52 56 5A 01 01 00 00 00 00 03 00 00 00 00 00 DC")
+            + b"\x00" * 1024
+        )
+        hasil = validate_game_file(rvz)
+        self.assertTrue(hasil["valid"])
+        self.assertEqual(hasil["kind"], "rvz")
+
+    def test_rvz_ascii_rvz1_gagal(self):
+        # Regresi v1.1.1: ASCII "RVZ1" (52 56 5A 31) BUKAN magic RVZ
+        # asli — file seperti ini harus DITOLAK.
+        rvz = self.root / "palsu.rvz"
+        rvz.write_bytes(b"RVZ1" + b"\x00" * 1024)
+        hasil = validate_game_file(rvz)
+        self.assertFalse(hasil["valid"])
+        self.assertEqual(hasil["kind"], "rvz")
 
     def test_rvz_tanpa_magic_gagal(self):
         rvz = self.root / "rusak.rvz"

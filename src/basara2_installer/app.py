@@ -5,9 +5,11 @@ SATU LAYAR SAJA — tidak ada tab lagi. Pengguna cukup:
   2. pilih folder install,
   3. tekan tombol besar ▶ MAIN.
 Lalu semua langkah berjalan otomatis dan berurutan: cek sistem (info
-saja, tidak pernah memblokir), unduh source, siapkan toolchain, pastikan
-.NET 8 SDK (diunduh otomatis bila tidak ada), validasi + konversi .rvz
-otomatis + ekstrak disc, terjemahkan, bangun Windows, lalu main.
+saja, tidak pernah memblokir), unduh source, validasi + konversi .rvz
+otomatis + ekstrak disc (v1.1.2: dipindah ke depan, sebelum toolchain,
+supaya file game yang bermasalah ketahuan cepat), siapkan toolchain,
+pastikan .NET 8 SDK (diunduh otomatis bila tidak ada), terjemahkan,
+bangun Windows, lalu main.
 
 Semua langkah RESUMABLE: langkah yang hasilnya sudah ada dilewati
 (source sudah ada, main.dol sudah ada, WiiCompiled.exe sudah ada). Bila
@@ -28,7 +30,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
 from . import __version__
-from .config import default_install_dir, load_settings, save_settings
+from .config import app_dir, default_install_dir, load_settings, save_settings
 from .port import (
     build_windows,
     download_source_zip,
@@ -75,6 +77,15 @@ class App(tk.Tk):
         self.settings = load_settings()
         self.queue: queue.Queue = queue.Queue()
         self._busy = False
+        # v1.1.2: log juga disimpan ke file, supaya tidak hilang bila
+        # aplikasi ditutup setelah gagal — sebelumnya log hanya ada di
+        # layar (maks. 2000 baris) dan "Salin Log" adalah satu-satunya
+        # jalan keluar. File: %APPDATA%\Basara2HeroesPCInstaller\
+        # basara2-installer.log
+        try:
+            self._log_path = app_dir() / "basara2-installer.log"
+        except Exception:  # noqa: BLE001
+            self._log_path = None
 
         self._build_widgets()
         self.after(100, self._poll_queue)
@@ -180,6 +191,10 @@ class App(tk.Tk):
             side="left", padx=(0, 8)
         )
         ttk.Button(
+            bottom, text="Buka Folder Log",
+            command=self._open_log_folder,
+        ).pack(side="left", padx=(0, 8))
+        ttk.Button(
             bottom, text="Buka Folder Install",
             command=self._open_install_folder,
         ).pack(side="left")
@@ -203,6 +218,13 @@ class App(tk.Tk):
             self.log_text.delete("1.0", f"{lines - MAX_LOG_LINES}.0")
         self.log_text.see("end")
         self.log_text.configure(state="disabled")
+        # v1.1.2: simpan juga ke file (lengkap, tidak dipangkas).
+        if self._log_path is not None:
+            try:
+                with open(self._log_path, "a", encoding="utf-8") as fh:
+                    fh.write(message + "\n")
+            except OSError:
+                pass
 
     def _poll_queue(self):
         try:
@@ -283,6 +305,19 @@ class App(tk.Tk):
         self.status_var.set(
             "Log disalin ke clipboard — tempelkan ke saya bila ada error."
         )
+
+    def _open_log_folder(self):
+        # Folder data aplikasi — berisi basara2-installer.log (v1.1.2)
+        # yang bisa dikirim bila ada error, walau aplikasi sudah ditutup.
+        try:
+            folder = app_dir()
+        except Exception as exc:  # noqa: BLE001
+            messagebox.showwarning("Folder log", f"Tidak bisa dibuka: {exc}")
+            return
+        ok, message = open_folder(folder)
+        if not ok:
+            messagebox.showwarning("Folder log", message)
+        self._append_log(message)
 
     def _open_install_folder(self):
         install_dir = self.install_entry.get().strip()
@@ -388,9 +423,27 @@ class App(tk.Tk):
             save_settings(self.settings)
             log(f"      Source terpasang: {root}")
 
-        # 3. Siapkan toolchain (perbaikan otomatis per-bagian).
-        put(("status", "Langkah 3/8: menyiapkan toolchain..."))
-        log("[3/8] Menyiapkan toolchain (CMake, Ninja, dependency, "
+        # 3. Validasi + konversi .rvz + ekstrak disc — v1.1.2: langkah
+        # ini DIPINDAH ke depan, sebelum toolchain. Alasannya:
+        # (a) README port sendiri menyuruh ekstrak disc DULU, baru
+        # setup toolchain; (b) file game yang bermasalah harus ketahuan
+        # dalam hitungan menit, bukan setelah mengunduh toolchain
+        # ~500 MB; (c) di v1.1.0/v1.1.1, perbaikan validasi .rvz baru
+        # tercapai bila toolchain (langkah 3 lama) berhasil dulu —
+        # bila toolchain yang gagal, pengguna mengira perbaikan .rvz
+        # tidak bekerja.
+        put(("status", "Langkah 3/8: menyiapkan file game..."))
+        log(f"[3/8] Menyiapkan file game: {Path(game).name}")
+        put(("progress_mode", "indeterminate"))
+        dol = prepare_game_file(
+            game, root, log_cb=log, progress_cb=progress
+        )
+        log(f"      File game siap: {dol}")
+        put(("progress_mode", "determinate"))
+
+        # 4. Siapkan toolchain (perbaikan otomatis per-bagian).
+        put(("status", "Langkah 4/8: menyiapkan toolchain..."))
+        log("[4/8] Menyiapkan toolchain (CMake, Ninja, dependency, "
             "llvm-mingw, .NET runtime — unduhan ~500 MB, bisa lama)...")
         put(("progress_mode", "indeterminate"))
         pieces = setup_toolchain(
@@ -400,22 +453,12 @@ class App(tk.Tk):
         log(f"      Toolchain siap: {', '.join(siap)}.")
         put(("progress_mode", "determinate"))
 
-        # 4. Pastikan .NET 8 SDK (diunduh otomatis bila tidak ada).
-        put(("status", "Langkah 4/8: memastikan .NET 8 SDK..."))
-        log("[4/8] Memastikan .NET 8 SDK (untuk membangun translator)...")
+        # 5. Pastikan .NET 8 SDK (diunduh otomatis bila tidak ada).
+        put(("status", "Langkah 5/8: memastikan .NET 8 SDK..."))
+        log("[5/8] Memastikan .NET 8 SDK (untuk membangun translator)...")
         put(("progress_mode", "indeterminate"))
         exe = ensure_dotnet_sdk(root, log_cb=log, progress_cb=progress)
         log(f"      .NET SDK dipakai: {exe}")
-        put(("progress_mode", "determinate"))
-
-        # 5. Validasi + konversi .rvz + ekstrak disc.
-        put(("status", "Langkah 5/8: menyiapkan file game..."))
-        log(f"[5/8] Menyiapkan file game: {Path(game).name}")
-        put(("progress_mode", "indeterminate"))
-        dol = prepare_game_file(
-            game, root, log_cb=log, progress_cb=progress
-        )
-        log(f"      File game siap: {dol}")
         put(("progress_mode", "determinate"))
 
         # 6. Buat folder generated/ (script repo menulis log ke sana).
